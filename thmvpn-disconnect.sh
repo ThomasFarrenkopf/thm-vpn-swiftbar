@@ -8,7 +8,8 @@
 #      -> passwortlos, ohne Dialog und ohne Fenster.
 #   2. Touch ID fuer sudo aktiv (pam_tid) -> da sudo/Touch ID ein TTY braucht,
 #      startet sich das Skript in einem Terminal-Fenster neu (open -a Terminal)
-#      und beendet openconnect dort per sudo (Touch ID).
+#      und beendet openconnect dort per sudo (Touch ID). Das Fenster schliesst
+#      sich danach selbst.
 #   3. sonst -> nativer macOS-Admin-Dialog (Passwort, ohne Fenster).
 #
 # Liegt nach der Installation in ~/.config/swiftbar/thmvpn-disconnect.sh
@@ -23,15 +24,19 @@ fi
 # Terminal (z.B. aus SwiftBar) in einem Terminal-Fenster neu starten.
 if /usr/bin/grep -qsE '^[[:space:]]*auth[[:space:]]+sufficient[[:space:]]+pam_tid' \
      /etc/pam.d/sudo_local /etc/pam.d/sudo; then
-  if [ ! -t 0 ]; then
-    exec /usr/bin/open -a Terminal "$0"
-  fi
+  . "$(dirname "$0")/thmvpn-closewindow.sh" || exit 1
+  relaunch_in_terminal
   echo "==> Trenne THM-VPN (sudo per Touch ID bestaetigen) ..."
   /usr/bin/sudo /usr/bin/pkill -INT openconnect
+  STATUS=$?
   sleep 2
   /usr/bin/open -g "swiftbar://refreshplugin?name=thmvpn"
-  echo "==> Fertig - der Menueleisten-Status ist aktualisiert."
-  echo "    Dieses Fenster kann geschlossen werden."
+  if [ "$STATUS" -eq 0 ]; then
+    echo "==> Fertig - der Menueleisten-Status ist aktualisiert."
+  else
+    echo "==> Trennen fehlgeschlagen (Status $STATUS) - kein openconnect beendet."
+  fi
+  close_own_window_if "$STATUS" || echo "    Dieses Fenster kann geschlossen werden."
   exit
 fi
 

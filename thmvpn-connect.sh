@@ -13,9 +13,8 @@
 # Liegt nach der Installation in ~/.config/swiftbar/thmvpn-connect.sh
 
 # Ohne Terminal gestartet (z.B. von SwiftBar)? -> in einem Terminal neu starten.
-if [ ! -t 0 ]; then
-  exec /usr/bin/open -a Terminal "$0"
-fi
+. "$(dirname "$0")/thmvpn-closewindow.sh" || exit 1
+relaunch_in_terminal
 
 CONF="$HOME/.config/swiftbar/thmvpn.conf"
 [ -f "$CONF" ] && . "$CONF"
@@ -41,6 +40,13 @@ if [ -x "$CLEANUP" ] && ! "$CLEANUP" --check >/dev/null; then
 fi
 
 sudo openconnect "${ARGS[@]}" "$HOST"
+STATUS=$?
 
 echo
-echo "==> openconnect beendet. Dieses Fenster kann geschlossen werden."
+# Nach sauberem Trennen raeumt sich das eigene Fenster selbst weg; bei einem
+# Fehler bleibt es offen, damit die Meldung lesbar ist.
+if close_own_window_if "$STATUS"; then
+  echo "==> openconnect beendet. Dieses Fenster schliesst sich."
+else
+  echo "==> openconnect beendet (Status $STATUS). Dieses Fenster kann geschlossen werden."
+fi

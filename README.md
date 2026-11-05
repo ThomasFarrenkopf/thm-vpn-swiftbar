@@ -117,10 +117,12 @@ mkdir -p ~/.config/swiftbar/plugins
 cp plugins/thmvpn.10s.sh   ~/.config/swiftbar/plugins/
 cp thmvpn-disconnect.sh    ~/.config/swiftbar/
 cp thmvpn-connect.sh       ~/.config/swiftbar/
+cp thmvpn-closewindow.sh   ~/.config/swiftbar/
 cp thmvpn-cleanup.sh       ~/.config/swiftbar/
 chmod +x ~/.config/swiftbar/plugins/thmvpn.10s.sh \
          ~/.config/swiftbar/thmvpn-disconnect.sh \
          ~/.config/swiftbar/thmvpn-connect.sh \
+         ~/.config/swiftbar/thmvpn-closewindow.sh \
          ~/.config/swiftbar/thmvpn-cleanup.sh
 
 # Konfig-Vorlage anlegen (RZ-Kennung dort eintragen)
@@ -205,7 +207,8 @@ Das Plugin prüft im getrennten Zustand bei jedem Refresh auf diese Reste (`thmv
 stören auch ohne VPN, weil `thm.de`-Namen nicht mehr auflösen bzw. gar kein Internet mehr geht.
 Eine alte Gateway-Route allein stört nur beim Verbinden und wird
 dort ohnehin automatisch entfernt (siehe unten), daher bleibt das Symbol dann **🔓**. Die nötigen Root-Rechte holt sich der Menüpunkt wie
-„VPN trennen" (Touch ID im Terminal, sonst Admin-Dialog). Zusätzlich räumt **„VPN verbinden"**
+„VPN trennen" (Touch ID im Terminal, sonst Admin-Dialog); das Terminal-Fenster schließt sich nach
+erfolgreichem Aufräumen nach wenigen Sekunden selbst. Zusätzlich räumt **„VPN verbinden"**
 vor dem Verbindungsaufbau automatisch auf – das `sudo` wird dort ohnehin abgefragt.
 
 Läuft openconnect oder ein anderer THM-VPN-Client (Tunnel-Adresse `10.196.x`), gilt nichts als
@@ -243,7 +246,11 @@ steckt im Dateinamen (`…10s.sh`) – für 5 Sekunden einfach in `thmvpn.5s.sh`
 erledigen. SwiftBar startet das Skript im Hintergrund; erkennt es, dass es ohne Terminal läuft
 (`[ ! -t 0 ]`), startet es sich per `open -a Terminal` selbst in einem Fenster neu und ruft dort
 `openconnect` mit den Werten aus `thmvpn.conf` auf. Das ist robuster als SwiftBars `terminal=true`,
-das eine Automations-Freigabe für Terminal.app benötigen würde.
+das eine Automations-Freigabe für Terminal.app benötigen würde. Endet `openconnect` sauber, schließt
+sich das Fenster selbst (`thmvpn-closewindow.sh`), sobald darin kein Prozess mehr läuft; bei einem
+Fehler bleibt es offen, damit die Meldung lesbar ist. Ein von Hand im eigenen Terminal gestartetes
+Skript und Fenster mit mehreren Tabs bleiben ebenfalls offen. Ist im Terminal-Profil unter „Shell“
+das Nachfragen vor dem Schließen auf „Immer“ gestellt, kann Terminal trotzdem eine Rückfrage zeigen.
 
 **Trennen-Knopf** (`thmvpn-disconnect.sh`): `openconnect` läuft als `root` (per `sudo` gestartet),
 ein SwiftBar-Plugin dagegen als normaler Benutzer und darf den Prozess nicht beenden. Der Helfer
@@ -254,8 +261,8 @@ automatisch:
 - **`sudoers`-Eintrag vorhanden** (siehe unten) → passwortlos, ohne Dialog und ohne Fenster.
 - **Touch ID für `sudo` aktiv** → da `sudo`/Touch ID ein TTY brauchen, startet sich das Skript per
   `open -a Terminal` in einem Fenster neu (`[ ! -t 0 ]`) und beendet openconnect dort per `sudo`
-  (Touch ID). Direktes `sudo` aus dem SwiftBar-Hintergrund scheitert, weil ohne Terminal kein
-  Touch-ID-/Passwort-Prompt möglich ist.
+  (Touch ID); das Fenster schließt sich danach selbst. Direktes `sudo` aus dem SwiftBar-Hintergrund
+  scheitert, weil ohne Terminal kein Touch-ID-/Passwort-Prompt möglich ist.
 - **sonst** → nativer macOS-Admin-Dialog (`osascript … with administrator privileges`, Passwort).
 
 ---
@@ -292,6 +299,7 @@ sudo chmod 440 /etc/sudoers.d/openconnect-disconnect
 rm -f ~/.config/swiftbar/plugins/thmvpn.10s.sh \
       ~/.config/swiftbar/thmvpn-disconnect.sh \
       ~/.config/swiftbar/thmvpn-connect.sh \
+      ~/.config/swiftbar/thmvpn-closewindow.sh \
       ~/.config/swiftbar/thmvpn-cleanup.sh \
       ~/.config/swiftbar/thmvpn.conf
 # optional:
@@ -310,6 +318,7 @@ sudo rm -f /etc/pam.d/sudo_local                   # nur falls ausschließlich f
 | `plugins/thmvpn.10s.sh` | SwiftBar-Plugin: zeigt Status + Verbinden-/Trennen-Knopf, Refresh alle 10 s |
 | `thmvpn-connect.sh`     | Helfer: startet openconnect in einem Terminal (liest `thmvpn.conf`) |
 | `thmvpn-disconnect.sh`  | Helfer: beendet openconnect sauber (per Admin-Dialog) |
+| `thmvpn-closewindow.sh` | Helfer: startet die Skripte im Terminal und schließt das selbst geöffnete Fenster nach erfolgreichem Ende (verbinden, trennen, aufräumen) |
 | `thmvpn-cleanup.sh`     | Helfer: Health-Check und Aufräumen von Resten abgebrochener Sitzungen (Routen, DNS) |
 | `thmvpn.conf.example`   | Vorlage für die Konfiguration (RZ-Kennung, Gateway, Gruppe) |
 | `install.sh`            | Einrichtung in einem Schritt |
